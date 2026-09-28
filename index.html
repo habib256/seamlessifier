@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Seamlessifier — texture ripper &amp; seamless maker</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">▦</span>
+    <span class="title">Seamlessifier</span>
+    <span class="subtitle">rip · seamless · atlas</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="ripper">Ripper</button>
+    <button class="tab" data-tab="seamless">Seamless</button>
+    <button class="tab" data-tab="atlas">Atlas</button>
+  </nav>
+  <div class="topbar-actions">
+    <button id="exportSelected" class="btn">Export selected</button>
+    <button id="exportAll" class="btn">Export all</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <!-- ============================= RIPPER ============================= -->
+  <section class="panel" id="panel-ripper">
+    <div class="stage">
+      <div class="stage-toolbar">
+        <label class="btn file">Load photo<input type="file" id="ripperFile" accept="image/*" hidden></label>
+        <span class="hint">Drag the 4 corners over a flat surface. Order: TL → TR → BR → BL.</span>
+      </div>
+      <div class="canvas-wrap" id="ripperCanvasWrap">
+        <canvas id="ripperCanvas"></canvas>
+        <div class="placeholder" id="ripperPlaceholder">Load a photo to begin</div>
+      </div>
+    </div>
+    <aside class="controls">
+      <h3>Output texture</h3>
+      <div class="row"><label>Width</label><input type="number" id="ripW" value="512" min="16" max="4096" step="16"></div>
+      <div class="row"><label>Height</label><input type="number" id="ripH" value="512" min="16" max="4096" step="16"></div>
+      <label class="check"><input type="checkbox" id="ripSquare" checked> Lock to square</label>
+      <div class="row"><label>Sample</label>
+        <select id="ripSample">
+          <option value="bicubic" selected>Bicubic</option>
+          <option value="bilinear">Bilinear</option>
+        </select>
+      </div>
+      <div class="slider"><label>Lighting fix <b id="vRipLight">0</b></label><input type="range" id="ripLight" min="0" max="100" value="0"></div>
+      <button id="ripFit" class="btn ghost">Suggest size from quad</button>
+      <button id="ripReset" class="btn ghost">Reset corners</button>
+      <hr>
+      <button id="ripButton" class="btn primary big">Rip texture →</button>
+      <p class="muted">The ripped texture is added to your library on the right.</p>
+      <h4>Preview</h4>
+      <canvas id="ripPreview" class="preview-fit"></canvas>
+    </aside>
+  </section>
+
+  <!-- ============================ SEAMLESS ============================ -->
+  <section class="panel hidden" id="panel-seamless">
+    <div class="stage">
+      <div class="stage-toolbar">
+        <span class="hint" id="seamSource">Select a texture in the library, or load an image →</span>
+        <label class="btn file">Load image<input type="file" id="seamFile" accept="image/*" hidden></label>
+      </div>
+      <div class="seam-previews">
+        <div>
+          <div class="cap">Result (1×)</div>
+          <canvas id="seamSingle" class="preview-square big"></canvas>
+        </div>
+        <div>
+          <div class="cap">Tiled 3×3 (seam check)</div>
+          <canvas id="seamTiled" class="preview-square big"></canvas>
+        </div>
+      </div>
+    </div>
+    <aside class="controls">
+      <h3>Method</h3>
+      <select id="seamMethod"></select>
+      <h3>Adjustments</h3>
+      <div class="slider"><label>Seam blend X <b id="vBlendX">50</b></label><input type="range" id="seamBlendX" min="0" max="100" value="50"></div>
+      <div class="slider"><label>Seam blend Y <b id="vBlendY">50</b></label><input type="range" id="seamBlendY" min="0" max="100" value="50"></div>
+      <div class="slider"><label>Detail restore <b id="vDetail">40</b></label><input type="range" id="seamDetail" min="0" max="100" value="40"></div>
+      <div class="slider"><label>Match histogram <b id="vMatch">0</b></label><input type="range" id="seamMatch" min="0" max="100" value="0"></div>
+      <div class="slider"><label>Contrast <b id="vContrast">0</b></label><input type="range" id="seamContrast" min="0" max="100" value="0"></div>
+      <div class="slider"><label>Lighting fix <b id="vLight">0</b></label><input type="range" id="seamLight" min="0" max="100" value="0"></div>
+      <hr>
+      <button id="seamApply" class="btn primary big">Apply &amp; add to library</button>
+      <p class="muted">Hotkey: press <kbd>S</kbd> to seamless the selected texture instantly.</p>
+    </aside>
+  </section>
+
+  <!-- ============================= ATLAS ============================= -->
+  <section class="panel hidden" id="panel-atlas">
+    <div class="stage">
+      <div class="stage-toolbar">
+        <span class="hint">Selected textures are packed into one image. Shift+drag a tile to move it.</span>
+      </div>
+      <div class="canvas-wrap" id="atlasCanvasWrap">
+        <canvas id="atlasCanvas"></canvas>
+        <div class="placeholder" id="atlasPlaceholder">Select textures and press Pack</div>
+      </div>
+    </div>
+    <aside class="controls">
+      <h3>Atlas</h3>
+      <div class="row"><label>Width</label><input type="number" id="atlasW" value="1024" min="64" max="8192" step="64"></div>
+      <div class="row"><label>Padding</label><input type="number" id="atlasPad" value="2" min="0" max="64"></div>
+      <button id="atlasPack" class="btn primary">Pack selected</button>
+      <button id="atlasExport" class="btn">Export atlas PNG</button>
+      <p class="muted" id="atlasInfo">—</p>
+    </aside>
+  </section>
+
+  <!-- ============================ LIBRARY ============================ -->
+  <aside class="library" id="library">
+    <div class="library-head">
+      <h3>Library</h3>
+      <span class="count" id="libCount">0</span>
+    </div>
+    <div class="library-grid" id="libGrid"></div>
+    <div class="library-foot">
+      <button id="libSelectAll" class="btn ghost sm">Select all</button>
+      <button id="libDelete" class="btn ghost sm">Delete</button>
+    </div>
+  </aside>
+</main>
+
+<footer class="statusbar"><span id="status">Ready.</span></footer>
+
+<script src="js/util.js"></script>
+<script src="js/seamless.js"></script>
+<script src="js/ripper.js"></script>
+<script src="js/atlas.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

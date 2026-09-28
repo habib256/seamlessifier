@@ -1,0 +1,133 @@
+/* Seamlessifier — dark studio UI */
+:root {
+  --bg: #15171c;
+  --panel: #1d2027;
+  --panel-2: #23262f;
+  --line: #313640;
+  --text: #d7dbe2;
+  --muted: #8b919e;
+  --accent: #4f9dff;
+  --accent-2: #2f6fd0;
+  --good: #57c98a;
+  --danger: #e0604f;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex; align-items: center; gap: 18px;
+  padding: 8px 14px; background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.logo { color: var(--accent); font-size: 18px; }
+.title { font-weight: 700; letter-spacing: .3px; }
+.subtitle { color: var(--muted); font-size: 11px; }
+.tabs { display: flex; gap: 4px; }
+.tab {
+  background: transparent; color: var(--muted); border: 0;
+  padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.tab:hover { color: var(--text); background: var(--panel-2); }
+.tab.active { color: #fff; background: var(--accent-2); }
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* ---- buttons ---- */
+.btn {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 7px 12px; cursor: pointer; font-size: 13px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+.btn.primary:hover { background: var(--accent); }
+.btn.ghost { background: transparent; }
+.btn.big { width: 100%; padding: 10px; font-weight: 600; }
+.btn.sm { padding: 5px 8px; font-size: 12px; }
+.btn.file { display: inline-block; }
+kbd { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 11px; }
+
+/* ---- workspace layout ---- */
+.workspace { flex: 1; display: flex; min-height: 0; }
+.panel { flex: 1; display: flex; min-width: 0; }
+.panel.hidden { display: none; }
+
+.stage { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 12px; gap: 10px; }
+.stage-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 12px; }
+
+.canvas-wrap {
+  flex: 1; position: relative; background:
+    repeating-conic-gradient(#202329 0% 25%, #1a1d22 0% 50%) 50% / 22px 22px;
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.canvas-wrap canvas { max-width: 100%; max-height: 100%; touch-action: none; }
+.placeholder {
+  position: absolute; color: var(--muted); pointer-events: none; font-size: 14px;
+}
+
+/* ---- controls panel ---- */
+.controls {
+  width: 280px; flex-shrink: 0; background: var(--panel);
+  border-left: 1px solid var(--line); padding: 14px; overflow-y: auto;
+}
+.controls h3 { margin: 4px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.controls h4 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); }
+.controls hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+.row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+.row label { color: var(--muted); }
+.row input { width: 90px; }
+.row select { width: 120px; }
+input[type="number"], select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; padding: 5px 7px;
+}
+select { width: 100%; }
+.check { display: flex; align-items: center; gap: 7px; margin: 8px 0; color: var(--muted); cursor: pointer; }
+.muted { color: var(--muted); font-size: 12px; }
+.slider { margin: 10px 0; }
+.slider label { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 4px; }
+.slider b { color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.preview-square { width: 100%; aspect-ratio: 1/1; background: #111; border: 1px solid var(--line); border-radius: 6px; image-rendering: pixelated; }
+.preview-square.big { }
+.preview-fit {
+  width: 100%; height: auto; max-height: 256px; display: block;
+  background: #111; border: 1px solid var(--line); border-radius: 6px;
+  image-rendering: pixelated; object-fit: contain;
+}
+
+/* ---- seamless previews ---- */
+.seam-previews { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 0; }
+.seam-previews > div { display: flex; flex-direction: column; min-height: 0; }
+.cap { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.seam-previews canvas { flex: 1; min-height: 0; width: 100%; background: #111; border: 1px solid var(--line); border-radius: 6px; image-rendering: pixelated; object-fit: contain; }
+
+/* ---- library ---- */
+.library {
+  width: 210px; flex-shrink: 0; background: var(--panel);
+  border-left: 1px solid var(--line); display: flex; flex-direction: column;
+}
+.library-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.library-head h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.count { background: var(--panel-2); border-radius: 10px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
+.library-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+.lib-item { position: relative; border: 2px solid transparent; border-radius: 6px; cursor: pointer; background: #111; overflow: hidden; }
+.lib-item canvas { display: block; width: 100%; aspect-ratio: 1/1; image-rendering: pixelated; }
+.lib-item.selected { border-color: var(--accent); }
+.lib-item .name { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 2px 4px; background: rgba(0,0,0,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.library-foot { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--line); }
+.library-foot .btn { flex: 1; }
+
+/* ---- ripper handles drawn on canvas; status bar ---- */
+.statusbar { padding: 5px 14px; background: var(--panel); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
