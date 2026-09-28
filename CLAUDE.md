@@ -9,6 +9,7 @@ rip a flat texture out of a photo shot at an angle (perspective correction), mak
 seamless/tileable, and pack them into an atlas. See `README.md` for the user-facing feature list.
 
 **Live site:** https://habib256.github.io/seamlessifier/ (GitHub Pages, `main` branch)
+**Repo:** https://github.com/habib256/seamlessifier
 
 ## Commands
 

@@ -1,5 +1,7 @@
 # Seamlessifier
 
+[**Live demo**](https://habib256.github.io/seamlessifier/) · [Source on GitHub](https://github.com/habib256/seamlessifier)
+
 A zero-install reimplementation of *Puck's Seamlessifier + Ripper* — an all-in-one
 tool that **rips textures out of photos taken from any angle** and **makes them
 seamless / tileable**, then **packs them into a texture atlas**.
