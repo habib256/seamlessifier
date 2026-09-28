@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">PageDroit</string>
+    <string name="tagline">Photo → 4 coins → page droite</string>
+    <string name="take_photo">Prendre une photo</string>
+    <string name="pick_gallery">Choisir dans la galerie</string>
+    <string name="intro">Photographiez une page, placez les 4 coins, puis enregistrez en PNG ou PDF et envoyez-la par e-mail.</string>
+    <string name="capture_cancelled">Photo annulée</string>
+    <string name="load_failed">Impossible de lire l’image</string>
+    <string name="reset_corners">Réinitialiser les coins</string>
+    <string name="straighten">Redresser la page</string>
+    <string name="hint_corners">Glissez HG · HD · BD · BG sur les coins du document</string>
+    <string name="sharpness">Netteté %1$d%%</string>
+    <string name="save_png">Enregistrer PNG</string>
+    <string name="save_pdf">Enregistrer PDF</string>
+    <string name="send_email">Envoyer par e-mail</string>
+    <string name="send_as_pdf">Joindre en PDF (sinon PNG)</string>
+    <string name="send_via">Envoyer avec…</string>
+    <string name="email_subject">Document scanné — PageDroit</string>
+    <string name="saved_png">PNG enregistré dans Photos / PageDroit</string>
+    <string name="saved_pdf">PDF enregistré dans Documents / PageDroit</string>
+    <string name="save_failed">Enregistrement impossible</string>
+    <string name="again">Nouvelle page</string>
+</resources>

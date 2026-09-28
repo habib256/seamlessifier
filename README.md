@@ -73,6 +73,11 @@ open index.html          # macOS — or just double-click it
 Works straight from `file://` in Chrome, Firefox and Safari. GitHub Pages serves
 the same files from the `main` branch.
 
+## Android — PageDroit
+A companion **document scanner** lives in [`android/`](android/): camera or gallery,
+4-corner straighten (same homography as the Ripper), sharpen, save PNG/PDF, send
+by e-mail. See [`android/README.md`](android/README.md) to build the APK.
+
 ## Project layout
 ```
 index.html        UI shell
