@@ -19,5 +19,7 @@
     <string name="saved_png">PNG enregistré dans Photos / PageDroit</string>
     <string name="saved_pdf">PDF enregistré dans Documents / PageDroit</string>
     <string name="save_failed">Enregistrement impossible</string>
+    <string name="rotate_ccw">90° ↺</string>
+    <string name="rotate_cw">90° ↻</string>
     <string name="again">Nouvelle page</string>
 </resources>

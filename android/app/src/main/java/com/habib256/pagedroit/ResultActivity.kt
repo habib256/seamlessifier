@@ -24,6 +24,7 @@ class ResultActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityResultBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        padForSystemBars(binding.root)
 
         val path = intent.getStringExtra(EXTRA_PATH) ?: run { finish(); return }
         warped = BitmapFactory.decodeFile(path)
@@ -62,6 +63,16 @@ class ResultActivity : AppCompatActivity() {
             Export.share(this, uri, mime, getString(R.string.email_subject))
         }
         binding.btnAgain.setOnClickListener { finish() }
+        binding.btnRotateCcw.setOnClickListener { rotateResult(false) }
+        binding.btnRotateCw.setOnClickListener { rotateResult(true) }
+    }
+
+    private fun rotateResult(clockwise: Boolean) {
+        val src = warped ?: return
+        val rotated = Warp.rotate90(src, clockwise)
+        warped = rotated
+        if (src !== rotated) src.recycle()
+        applySharpen(binding.seekSharp.progress / 100f)
     }
 
     private fun applySharpen(amount: Float) {

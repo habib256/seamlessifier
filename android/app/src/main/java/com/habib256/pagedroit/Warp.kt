@@ -2,11 +2,17 @@ package com.habib256.pagedroit
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 object Warp {
+
+    fun rotate90(src: Bitmap, clockwise: Boolean): Bitmap {
+        val m = Matrix().apply { postRotate(if (clockwise) 90f else -90f) }
+        return Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, true)
+    }
 
     fun rip(src: Bitmap, corners: Array<FloatArray>, outW: Int, outH: Int): Bitmap {
         val sw = src.width

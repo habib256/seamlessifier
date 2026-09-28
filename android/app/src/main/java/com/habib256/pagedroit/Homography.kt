@@ -92,4 +92,13 @@ object Homography {
             (h * scale).toInt().coerceIn(320, maxSide)
         )
     }
+
+    /** Map TL,TR,BR,BL into the bitmap after a 90° rotate, still in TL,TR,BR,BL order. */
+    fun rotateCorners(corners: Array<FloatArray>, w: Int, h: Int, clockwise: Boolean): Array<FloatArray> {
+        val tl = corners[0]; val tr = corners[1]; val br = corners[2]; val bl = corners[3]
+        fun cw(p: FloatArray) = floatArrayOf(h - 1 - p[1], p[0])
+        fun ccw(p: FloatArray) = floatArrayOf(p[1], w - 1 - p[0])
+        return if (clockwise) arrayOf(cw(bl), cw(tl), cw(tr), cw(br))
+        else arrayOf(ccw(tr), ccw(br), ccw(bl), ccw(tl))
+    }
 }

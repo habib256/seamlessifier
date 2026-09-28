@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        padForSystemBars(binding.root)
 
         binding.btnCamera.setOnClickListener {
             val file = File(cacheDir, "capture.jpg")

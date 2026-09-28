@@ -21,16 +21,16 @@ class QuadOverlayView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     var bitmap: Bitmap? = null
-        set(value) {
-            field = value
-            if (value != null && (corners == null || corners!!.isEmpty())) {
-                corners = Homography.defaultCorners(value.width, value.height)
-            }
-            invalidate()
-        }
+        private set
 
     var corners: Array<FloatArray>? = null
         private set
+
+    fun setImage(bmp: Bitmap, newCorners: Array<FloatArray>? = null) {
+        bitmap = bmp
+        corners = newCorners ?: Homography.defaultCorners(bmp.width, bmp.height)
+        invalidate()
+    }
 
     private val dst = android.graphics.RectF()
     private var drag = -1

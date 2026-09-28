@@ -26,6 +26,7 @@ class CropActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityCropBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        padForSystemBars(binding.root)
 
         val uri = intent.getStringExtra(EXTRA_URI)?.let { Uri.parse(it) }
         if (uri == null) {
@@ -41,11 +42,23 @@ class CropActivity : AppCompatActivity() {
                 return@launch
             }
             source = bmp
-            binding.quad.bitmap = bmp
+            binding.quad.setImage(bmp)
         }
 
         binding.btnReset.setOnClickListener { binding.quad.resetCorners() }
+        binding.btnRotateCcw.setOnClickListener { rotate(false) }
+        binding.btnRotateCw.setOnClickListener { rotate(true) }
         binding.btnStraighten.setOnClickListener { straighten() }
+    }
+
+    private fun rotate(clockwise: Boolean) {
+        val bmp = source ?: return
+        val c = binding.quad.corners ?: return
+        val rotated = Warp.rotate90(bmp, clockwise)
+        val mapped = Homography.rotateCorners(c, bmp.width, bmp.height, clockwise)
+        source = rotated
+        binding.quad.setImage(rotated, mapped)
+        if (bmp !== rotated) bmp.recycle()
     }
 
     private fun straighten() {
