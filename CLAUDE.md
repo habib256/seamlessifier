@@ -40,7 +40,9 @@ this is deliberate so the app works over `file://` without a server. **Do not co
   `{ id, name, canvas, w, h, selected }` where `canvas` is an offscreen `<canvas>` — convenient
   for thumbnails, atlas drawing, and PNG export. Convert to `ImageData` via `SF.toImageData(t.canvas)`
   only when a pixel operation needs it. `state.activeId` is the last single-selected texture and
-  is the implicit source for the Seamless tab and the `S` hotkey.
+  is the implicit source for the Seamless tab and the `S` hotkey. Library contents are persisted
+  to IndexedDB (best-effort; silent no-op on `file://`). Undo is a stack of restorers in `app.js`
+  (`pushUndo` / `undo`); drop handling is also in `app.js`, not in the math modules.
 
 ### Ripper (`js/ripper.js` + ripper section of `app.js`)
 `Ripper.rip` iterates **output** pixels, maps each through the homography to a **source** location,
@@ -72,4 +74,4 @@ mutates placement `x/y` and re-composes via `Atlas.compose`. All PNG export goes
 ### app.js wiring notes
 Single IIFE, no framework. Tabs toggle `.hidden` on `#panel-*`. Canvas-heavy previews (ripper,
 seamless, atlas) are recomputed on a short `setTimeout` debounce and re-fit on window resize and
-tab switch. Hotkeys (`S`, `1/2/3`, Shift+drag, wheel) are ignored while focus is in an input/select.
+tab switch. Hotkeys (`S`, `Z` / Ctrl+Z, `1/2/3`, Shift+drag, wheel) are ignored while focus is in an input/select.

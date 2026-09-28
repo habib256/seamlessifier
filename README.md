@@ -48,8 +48,17 @@ Select textures, **Pack** them into one image (shelf packer), **Shift+drag** to
 reposition tiles, and **Export atlas PNG**. Also export the **selected** or
 **all** textures individually.
 
+### Library
+- **Drop** images onto the Ripper, Seamless preview, or the library pane.
+- **Double-click** a thumbnail name to rename.
+- Seamless can **replace** the source texture instead of adding a copy.
+- **Undo** (`Z` or `Ctrl`/`⌘Z`): quad edits, add/replace/delete, photo load.
+- The library is stored in **IndexedDB** (the live HTTPS site remembers it;
+  `file://` often cannot).
+
 ## Hotkeys
-- `S` — instantly seamless the active (last-selected) texture with current settings
+- `S` — apply Seamless to the active texture (add or replace, per the checkbox)
+- `Z` or `Ctrl`/`⌘Z` — undo
 - `1` / `2` / `3` — switch to Ripper / Seamless / Atlas
 - `Shift+drag` — move (whole quad in Ripper, tile in Atlas)
 - **Scroll wheel** (over the Ripper photo) — grow / shrink the selection quad

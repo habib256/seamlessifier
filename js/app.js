@@ -17,14 +17,181 @@
     nextId: 1
   };
 
-  function makeTexture(imageData, name) {
+  // ------------------------------------------------------------- undo
+  var undoStack = [];
+  var MAX_UNDO = 40;
+  function pushUndo(fn) {
+    undoStack.push(fn);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+  }
+  function undo() {
+    var fn = undoStack.pop();
+    if (!fn) { status("Nothing to undo."); return; }
+    fn();
+    status("Undone.");
+  }
+
+  // ----------------------------------------------------- IndexedDB library
+  var DB_NAME = "seamlessifier";
+  var STORE = "textures";
+  var META = "meta";
+  var dbHandle = null;
+  var dbWaiters = null;
+  var saveGen = 0;
+  var persistTimer = null;
+
+  function withDb(cb) {
+    if (!window.indexedDB) { cb(null); return; }
+    if (dbHandle) { cb(dbHandle); return; }
+    if (dbWaiters) { dbWaiters.push(cb); return; }
+    dbWaiters = [cb];
+    var req;
+    try { req = indexedDB.open(DB_NAME, 1); } catch (e) {
+      var w0 = dbWaiters; dbWaiters = null;
+      w0.forEach(function (fn) { fn(null); });
+      return;
+    }
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(META)) db.createObjectStore(META);
+    };
+    req.onsuccess = function () {
+      dbHandle = req.result;
+      var w = dbWaiters; dbWaiters = null;
+      w.forEach(function (fn) { fn(dbHandle); });
+    };
+    req.onerror = function () {
+      var w = dbWaiters; dbWaiters = null;
+      w.forEach(function (fn) { fn(null); });
+    };
+  }
+
+  function canvasToBlob(canvas, cb) {
+    try {
+      canvas.toBlob(function (blob) { cb(blob || null); }, "image/png");
+    } catch (e) { cb(null); }
+  }
+
+  function persistLibrary() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(saveLibrary, 280);
+  }
+
+  function saveLibrary() {
+    var items = state.library.slice();
+    var nextId = state.nextId;
+    var gen = ++saveGen;
+    function write(rows) {
+      withDb(function (db) {
+        if (!db || gen !== saveGen) return;
+        try {
+          var tx = db.transaction([STORE, META], "readwrite");
+          var store = tx.objectStore(STORE);
+          store.clear();
+          rows.forEach(function (r) { if (r && r.blob) store.put(r); });
+          tx.objectStore(META).put(nextId, "nextId");
+        } catch (e) { /* file:// or quota — keep working in memory */ }
+      });
+    }
+    if (!items.length) { write([]); return; }
+    var rows = new Array(items.length);
+    var left = items.length;
+    items.forEach(function (t, i) {
+      canvasToBlob(t.canvas, function (blob) {
+        rows[i] = { id: t.id, name: t.name, w: t.w, h: t.h, blob: blob };
+        if (--left === 0) write(rows);
+      });
+    });
+  }
+
+  function restoreLibrary(done) {
+    withDb(function (db) {
+      if (!db) { done(); return; }
+      var rows = [];
+      var nextId = null;
+      var tx;
+      try { tx = db.transaction([STORE, META], "readonly"); } catch (e) { done(); return; }
+      tx.objectStore(META).get("nextId").onsuccess = function (e) { nextId = e.target.result; };
+      var cur = tx.objectStore(STORE).openCursor();
+      cur.onsuccess = function () {
+        var c = cur.result;
+        if (c) { rows.push(c.value); c.continue(); }
+      };
+      tx.oncomplete = function () {
+        rows.sort(function (a, b) { return a.id - b.id; });
+        if (typeof nextId === "number") state.nextId = Math.max(state.nextId, nextId);
+        if (!rows.length) { done(); return; }
+        var left = rows.length;
+        rows.forEach(function (r) {
+          if (!r.blob) { if (--left === 0) finishRestore(); return; }
+          var img = new Image();
+          var url = URL.createObjectURL(r.blob);
+          img.onload = function () {
+            var c = document.createElement("canvas");
+            c.width = r.w; c.height = r.h;
+            c.getContext("2d").drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            state.library.push({
+              id: r.id, name: r.name, canvas: c, w: r.w, h: r.h, selected: false
+            });
+            if (r.id >= state.nextId) state.nextId = r.id + 1;
+            if (--left === 0) finishRestore();
+          };
+          img.onerror = function () {
+            URL.revokeObjectURL(url);
+            if (--left === 0) finishRestore();
+          };
+          img.src = url;
+        });
+      };
+      tx.onerror = function () { done(); };
+    });
+    function finishRestore() {
+      if (state.library.length) {
+        var last = state.library[state.library.length - 1];
+        last.selected = true;
+        state.activeId = last.id;
+      }
+      done();
+    }
+  }
+
+  // -------------------------------------------------------- library ops
+  function makeTexture(imageData, name, opts) {
+    opts = opts || {};
+    var id = state.nextId++;
     var canvas = SF.imageToCanvas(imageData);
     var t = {
-      id: state.nextId++, name: name || ("tex_" + state.nextId),
+      id: id, name: name || ("tex_" + id),
       canvas: canvas, w: imageData.width, h: imageData.height, selected: false
     };
     state.library.push(t);
+    if (!opts.silent) {
+      pushUndo(function () {
+        state.library = state.library.filter(function (x) { return x.id !== id; });
+        if (state.activeId === id) state.activeId = null;
+        renderLibrary();
+        persistLibrary();
+        if (state.tab === "seamless") refreshSeamlessSource();
+      });
+    }
+    persistLibrary();
     return t;
+  }
+
+  function replaceTexture(t, imageData) {
+    var prev = { canvas: t.canvas, w: t.w, h: t.h };
+    t.canvas = SF.imageToCanvas(imageData);
+    t.w = imageData.width;
+    t.h = imageData.height;
+    pushUndo(function () {
+      t.canvas = prev.canvas; t.w = prev.w; t.h = prev.h;
+      renderLibrary();
+      persistLibrary();
+      if (state.tab === "seamless") refreshSeamlessSource();
+    });
+    persistLibrary();
   }
 
   function getActive() {
@@ -32,10 +199,53 @@
   }
   function getSelected() { return state.library.filter(function (t) { return t.selected; }); }
 
+  function selectOnly(t) {
+    state.library.forEach(function (o) { o.selected = false; });
+    t.selected = true;
+    state.activeId = t.id;
+  }
+
   // ------------------------------------------------------------- library UI
+  function startRename(t, nameEl) {
+    var prev = t.name;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.value = t.name;
+    nameEl.textContent = "";
+    nameEl.appendChild(input);
+    input.focus();
+    input.select();
+    var done = false;
+    function finish(ok) {
+      if (done) return;
+      done = true;
+      if (ok) {
+        var v = input.value.replace(/\s+/g, " ").trim() || prev;
+        if (v !== prev) {
+          t.name = v;
+          pushUndo(function () { t.name = prev; renderLibrary(); persistLibrary(); });
+          persistLibrary();
+        } else t.name = prev;
+      } else t.name = prev;
+      renderLibrary();
+    }
+    input.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); finish(true); }
+      if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener("blur", function () { finish(true); });
+  }
+
   function renderLibrary() {
     var grid = $("libGrid");
     grid.innerHTML = "";
+    if (!state.library.length) {
+      var empty = document.createElement("div");
+      empty.className = "lib-empty";
+      empty.textContent = "Drop images here";
+      grid.appendChild(empty);
+    }
     state.library.forEach(function (t) {
       var item = document.createElement("div");
       item.className = "lib-item" + (t.selected ? " selected" : "");
@@ -47,17 +257,21 @@
       g.drawImage(t.canvas, 0, 0, 96, 96);
       var name = document.createElement("div");
       name.className = "name"; name.textContent = t.name + " · " + t.w + "×" + t.h;
+      name.title = "Double-click to rename";
       item.appendChild(thumb); item.appendChild(name);
       item.addEventListener("click", function (e) {
         if (e.shiftKey || e.metaKey || e.ctrlKey) {
           t.selected = !t.selected;
         } else {
-          state.library.forEach(function (o) { o.selected = false; });
-          t.selected = true;
+          selectOnly(t);
         }
         state.activeId = t.id;
         renderLibrary();
         if (state.tab === "seamless") refreshSeamlessSource();
+      });
+      name.addEventListener("dblclick", function (e) {
+        e.stopPropagation();
+        startRename(t, name);
       });
       grid.appendChild(item);
     });
@@ -81,23 +295,117 @@
     b.addEventListener("click", function () { switchTab(b.dataset.tab); });
   });
 
-  // ========================================================== RIPPER
-  var ripper = { img: null, src: null, corners: null, scale: 1, drag: -1, panStart: null };
-
-  function loadRipperImage(file) {
+  // --------------------------------------------------------- file loading
+  function isImageFile(f) {
+    if (!f) return false;
+    if (f.type && f.type.indexOf("image/") === 0) return true;
+    return /\.(png|jpe?g|gif|webp|bmp|tif{1,2}|avif)$/i.test(f.name || "");
+  }
+  function hasFiles(e) {
+    var t = e.dataTransfer && e.dataTransfer.types;
+    if (!t) return false;
+    if (t.contains) return t.contains("Files");
+    return Array.prototype.indexOf.call(t, "Files") >= 0;
+  }
+  function filesFromDrop(e) {
+    var out = [];
+    if (!e.dataTransfer || !e.dataTransfer.files) return out;
+    for (var i = 0; i < e.dataTransfer.files.length; i++) {
+      if (isImageFile(e.dataTransfer.files[i])) out.push(e.dataTransfer.files[i]);
+    }
+    return out;
+  }
+  function loadImageFile(file, cb) {
     var url = URL.createObjectURL(file);
     var img = new Image();
     img.onload = function () {
+      var idata = SF.toImageData(img, img.naturalWidth, img.naturalHeight);
+      URL.revokeObjectURL(url);
+      cb(null, img, idata, file);
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      cb("Could not load " + file.name);
+    };
+    img.src = url;
+  }
+  function addFilesToLibrary(files) {
+    var n = 0;
+    files.forEach(function (file) {
+      loadImageFile(file, function (err, img, idata, f) {
+        if (err) { status(err); return; }
+        var base = (f.name || "img").replace(/\.[^.]+$/, "");
+        var t = makeTexture(idata, base);
+        selectOnly(t);
+        n++;
+        renderLibrary();
+        if (state.tab === "seamless") refreshSeamlessSource();
+        status("Added " + n + " image(s) to library.");
+      });
+    });
+  }
+  function bindDrop(el, onFiles) {
+    el.addEventListener("dragover", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      el.classList.add("drop-hover");
+    });
+    el.addEventListener("dragleave", function (e) {
+      if (!el.contains(e.relatedTarget)) el.classList.remove("drop-hover");
+    });
+    el.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove("drop-hover");
+      var files = filesFromDrop(e);
+      if (files.length) onFiles(files);
+    });
+  }
+
+  // ========================================================== RIPPER
+  var ripper = { img: null, src: null, corners: null, scale: 1, drag: -1, panStart: null };
+  var wheelUndoArmed = true, wheelUndoTimer = null;
+
+  function snapshotCorners() {
+    if (!ripper.corners) return;
+    var prev = ripper.corners.map(function (p) { return p.slice(); });
+    pushUndo(function () {
+      ripper.corners = prev.map(function (p) { return p.slice(); });
+      drawRipper();
+      updateRipPreview();
+    });
+  }
+
+  function loadRipperImage(file) {
+    var prev = {
+      img: ripper.img, src: ripper.src,
+      corners: ripper.corners && ripper.corners.map(function (p) { return p.slice(); })
+    };
+    loadImageFile(file, function (err, img, idata, f) {
+      if (err) { status(err); return; }
+      if (prev.img) {
+        pushUndo(function () {
+          ripper.img = prev.img;
+          ripper.src = prev.src;
+          ripper.corners = prev.corners;
+          $("ripperPlaceholder").style.display = prev.img ? "none" : "";
+          resizeRipperCanvas();
+          drawRipper();
+          updateRipPreview();
+        });
+      }
       ripper.img = img;
-      ripper.src = SF.toImageData(img, img.naturalWidth, img.naturalHeight);
+      ripper.src = idata;
       ripper.corners = SF.Ripper.defaultCorners(img.naturalWidth, img.naturalHeight);
       $("ripperPlaceholder").style.display = "none";
       resizeRipperCanvas();
       drawRipper();
-      status("Loaded " + file.name + " (" + img.naturalWidth + "×" + img.naturalHeight + ")");
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
+      updateRipPreview();
+      status("Loaded " + f.name + " (" + img.naturalWidth + "×" + img.naturalHeight + ")");
+    });
   }
 
   function resizeRipperCanvas() {
@@ -173,12 +481,17 @@
       if (!ripper.corners) return;
       c.setPointerCapture(e.pointerId);
       var m = ripperMouse(e);
-      if (e.shiftKey) { ripper.panStart = { m: m, corners: ripper.corners.map(function (p) { return p.slice(); }) }; return; }
+      if (e.shiftKey) {
+        snapshotCorners();
+        ripper.panStart = { m: m, corners: ripper.corners.map(function (p) { return p.slice(); }) };
+        return;
+      }
       var best = -1, bd = 16 / ripper.scale;
       ripper.corners.forEach(function (p, i) {
         var d = Math.hypot(p[0] - m[0], p[1] - m[1]);
         if (d < bd) { bd = d; best = i; }
       });
+      if (best >= 0) snapshotCorners();
       ripper.drag = best; drawRipper();
     });
     c.addEventListener("pointermove", function (e) {
@@ -204,6 +517,9 @@
     c.addEventListener("wheel", function (e) {
       if (!ripper.corners) return;
       e.preventDefault();
+      if (wheelUndoArmed) { snapshotCorners(); wheelUndoArmed = false; }
+      clearTimeout(wheelUndoTimer);
+      wheelUndoTimer = setTimeout(function () { wheelUndoArmed = true; }, 400);
       var cx = 0, cy = 0;
       ripper.corners.forEach(function (p) { cx += p[0]; cy += p[1]; });
       cx /= 4; cy /= 4;
@@ -241,7 +557,11 @@
 
   $("ripperFile").addEventListener("change", function (e) { if (e.target.files[0]) loadRipperImage(e.target.files[0]); });
   $("ripReset").addEventListener("click", function () {
-    if (ripper.img) { ripper.corners = SF.Ripper.defaultCorners(ripper.img.naturalWidth, ripper.img.naturalHeight); drawRipper(); updateRipPreview(); }
+    if (ripper.img) {
+      snapshotCorners();
+      ripper.corners = SF.Ripper.defaultCorners(ripper.img.naturalWidth, ripper.img.naturalHeight);
+      drawRipper(); updateRipPreview();
+    }
   });
   $("ripFit").addEventListener("click", function () {
     if (!ripper.corners) return;
@@ -267,8 +587,7 @@
     var h = SF.clamp(parseInt($("ripH").value, 10) || 512, 16, 4096);
     var out = applyRipLighting(SF.Ripper.rip(ripper.src, ripper.corners, w, h, ripSampler()));
     var t = makeTexture(out, "rip_" + state.nextId);
-    state.library.forEach(function (o) { o.selected = false; });
-    t.selected = true; state.activeId = t.id;
+    selectOnly(t);
     renderLibrary();
     status("Ripped " + w + "×" + h + " → added to library as " + t.name);
   });
@@ -295,29 +614,44 @@
     };
   }
 
+  function updateSeamApplyLabel() {
+    $("seamApply").textContent = $("seamReplace").checked
+      ? "Apply & replace source"
+      : "Apply & add to library";
+  }
+  $("seamReplace").addEventListener("change", updateSeamApplyLabel);
+
   function refreshSeamlessSource() {
     var t = getActive();
     if (t) {
       seamSource = SF.toImageData(t.canvas, t.w, t.h);
       $("seamSource").textContent = "Source: " + t.name + " (" + t.w + "×" + t.h + ")";
       updateSeamPreview();
-    } else {
-      $("seamSource").textContent = "Select a texture in the library, or load an image →";
+    } else if (!seamSource) {
+      $("seamSource").textContent = "Select a texture, load an image, or drop one here →";
     }
   }
 
-  $("seamFile").addEventListener("change", function (e) {
-    var file = e.target.files[0]; if (!file) return;
-    var url = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function () {
-      seamSource = SF.toImageData(img, img.naturalWidth, img.naturalHeight);
-      $("seamSource").textContent = "Source: " + file.name + " (" + img.naturalWidth + "×" + img.naturalHeight + ")";
+  function loadSeamFile(file) {
+    loadImageFile(file, function (err, img, idata, f) {
+      if (err) { status(err); return; }
+      var prev = seamSource;
+      var prevActive = state.activeId;
+      pushUndo(function () {
+        seamSource = prev;
+        state.activeId = prevActive;
+        refreshSeamlessSource();
+        if (!prev) $("seamSource").textContent = "Select a texture, load an image, or drop one here →";
+      });
+      seamSource = idata;
+      $("seamSource").textContent = "Source: " + f.name + " (" + img.naturalWidth + "×" + img.naturalHeight + ")";
       state.activeId = null;
       updateSeamPreview();
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
+    });
+  }
+
+  $("seamFile").addEventListener("change", function (e) {
+    if (e.target.files[0]) loadSeamFile(e.target.files[0]);
   });
 
   var seamTimer = null, lastResult = null;
@@ -328,10 +662,8 @@
     seamTimer = setTimeout(function () {
       var result = SF.Seamless.apply(seamSource, seamOpts());
       lastResult = result;
-      // single
       var sc = $("seamSingle"); sc.width = result.width; sc.height = result.height;
       sc.getContext("2d").putImageData(result, 0, 0);
-      // 3x3 tiled
       var tile = SF.imageToCanvas(result);
       var tc = $("seamTiled"); tc.width = result.width * 3; tc.height = result.height * 3;
       var g = tc.getContext("2d");
@@ -355,12 +687,22 @@
   function applySeamless() {
     if (!seamSource) { status("No source texture. Select one in the library."); return; }
     var result = SF.Seamless.apply(seamSource, seamOpts());
+    lastResult = result;
     var base = getActive();
-    var t = makeTexture(result, (base ? base.name : "img") + "_seamless");
-    state.library.forEach(function (o) { o.selected = false; });
-    t.selected = true; state.activeId = t.id;
-    renderLibrary();
-    status("Seamless texture added: " + t.name);
+    var replace = $("seamReplace").checked && base;
+    if (replace) {
+      replaceTexture(base, result);
+      selectOnly(base);
+      seamSource = SF.toImageData(base.canvas, base.w, base.h);
+      renderLibrary();
+      refreshSeamlessSource();
+      status("Replaced " + base.name);
+    } else {
+      var t = makeTexture(result, (base ? base.name : "img") + "_seamless");
+      selectOnly(t);
+      renderLibrary();
+      status("Seamless texture added: " + t.name);
+    }
   }
   $("seamApply").addEventListener("click", applySeamless);
 
@@ -446,6 +788,7 @@
     state.library.forEach(exportTexture);
     status("Exported all " + state.library.length + " texture(s).");
   });
+  $("undoBtn").addEventListener("click", undo);
 
   // ------------------------------------------------------------ library foot
   $("libSelectAll").addEventListener("click", function () {
@@ -454,16 +797,54 @@
     renderLibrary();
   });
   $("libDelete").addEventListener("click", function () {
+    var removed = state.library.filter(function (t) { return t.selected; });
+    if (!removed.length) return;
+    var prevLib = state.library.slice();
+    var prevActive = state.activeId;
+    pushUndo(function () {
+      state.library = prevLib.slice();
+      state.activeId = prevActive;
+      renderLibrary();
+      persistLibrary();
+      if (state.tab === "seamless") refreshSeamlessSource();
+    });
     state.library = state.library.filter(function (t) { return !t.selected; });
-    if (!getActive()) state.activeId = null;
+    if (!getActive()) state.activeId = state.library.length ? state.library[state.library.length - 1].id : null;
     renderLibrary();
+    persistLibrary();
     if (state.tab === "seamless") refreshSeamlessSource();
+  });
+
+  // ------------------------------------------------------------ drop zones
+  bindDrop($("ripperCanvasWrap"), function (files) { loadRipperImage(files[0]); });
+  bindDrop(document.querySelector(".seam-previews"), function (files) { loadSeamFile(files[0]); });
+  bindDrop($("library"), addFilesToLibrary);
+  window.addEventListener("dragover", function (e) {
+    if (hasFiles(e)) e.preventDefault();
+  });
+  window.addEventListener("drop", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    var files = filesFromDrop(e);
+    if (!files.length) return;
+    if (state.tab === "ripper") loadRipperImage(files[0]);
+    else if (state.tab === "seamless") loadSeamFile(files[0]);
+    else addFilesToLibrary(files);
   });
 
   // ------------------------------------------------------------ hotkeys
   document.addEventListener("keydown", function (e) {
     var tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "select" || tag === "textarea") return;
+    if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    if ((e.key === "z" || e.key === "Z") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      undo();
+      return;
+    }
     if (e.key === "s" || e.key === "S") {
       var t = getActive();
       if (t) {
@@ -485,6 +866,14 @@
     }, 100);
   });
 
-  renderLibrary();
-  status("Ready. Load a photo in the Ripper tab, or drop an image into Seamless.");
+  restoreLibrary(function () {
+    renderLibrary();
+    if (state.library.length) {
+      status("Restored " + state.library.length + " texture(s) from last session.");
+      if (state.tab === "seamless") refreshSeamlessSource();
+    } else {
+      renderLibrary();
+      status("Ready. Drop an image on the Ripper, Seamless, or library.");
+    }
+  });
 })(window.SF = window.SF || {});

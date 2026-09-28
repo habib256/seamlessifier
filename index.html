@@ -19,6 +19,7 @@
     <button class="tab" data-tab="atlas">Atlas</button>
   </nav>
   <div class="topbar-actions">
+    <button id="undoBtn" class="btn" title="Ctrl/Cmd+Z">Undo</button>
     <button id="exportSelected" class="btn">Export selected</button>
     <button id="exportAll" class="btn">Export all</button>
   </div>
@@ -30,11 +31,11 @@
     <div class="stage">
       <div class="stage-toolbar">
         <label class="btn file">Load photo<input type="file" id="ripperFile" accept="image/*" hidden></label>
-        <span class="hint">Drag the 4 corners over a flat surface. Order: TL → TR → BR → BL.</span>
+        <span class="hint">Drop a photo, then drag the 4 corners (TL → TR → BR → BL). Ctrl/Cmd+Z undoes.</span>
       </div>
       <div class="canvas-wrap" id="ripperCanvasWrap">
         <canvas id="ripperCanvas"></canvas>
-        <div class="placeholder" id="ripperPlaceholder">Load a photo to begin</div>
+        <div class="placeholder" id="ripperPlaceholder">Load or drop a photo to begin</div>
       </div>
     </div>
     <aside class="controls">
@@ -63,7 +64,7 @@
   <section class="panel hidden" id="panel-seamless">
     <div class="stage">
       <div class="stage-toolbar">
-        <span class="hint" id="seamSource">Select a texture in the library, or load an image →</span>
+        <span class="hint" id="seamSource">Select a texture, load an image, or drop one here →</span>
         <label class="btn file">Load image<input type="file" id="seamFile" accept="image/*" hidden></label>
       </div>
       <div class="seam-previews">
@@ -88,8 +89,9 @@
       <div class="slider"><label>Contrast <b id="vContrast">0</b></label><input type="range" id="seamContrast" min="0" max="100" value="0"></div>
       <div class="slider"><label>Lighting fix <b id="vLight">0</b></label><input type="range" id="seamLight" min="0" max="100" value="0"></div>
       <hr>
+      <label class="check"><input type="checkbox" id="seamReplace"> Replace source (instead of adding)</label>
       <button id="seamApply" class="btn primary big">Apply &amp; add to library</button>
-      <p class="muted">Hotkey: press <kbd>S</kbd> to seamless the selected texture instantly.</p>
+      <p class="muted">Hotkey: <kbd>S</kbd> apply · <kbd>Z</kbd> / Ctrl+Z undo. Double-click a library name to rename.</p>
     </aside>
   </section>
 
