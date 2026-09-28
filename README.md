@@ -5,7 +5,9 @@ tool that **rips textures out of photos taken from any angle** and **makes them
 seamless / tileable**, then **packs them into a texture atlas**.
 
 It runs entirely in the browser (HTML5 Canvas + vanilla JS, no build step, no
-dependencies). Open `index.html` and go.
+dependencies). Open `index.html` and go — or use the hosted copy:
+
+**Try it live: [habib256.github.io/seamlessifier](https://habib256.github.io/seamlessifier/)**
 
 ## Features
 
@@ -51,10 +53,14 @@ reposition tiles, and **Export atlas PNG**. Also export the **selected** or
 - **Scroll wheel** (over the Ripper photo) — grow / shrink the selection quad
 
 ## Running
+
+- **Online:** [https://habib256.github.io/seamlessifier/](https://habib256.github.io/seamlessifier/)
+- **Local:**
 ```
 open index.html          # macOS — or just double-click it
 ```
-Works straight from `file://` in Chrome, Firefox and Safari.
+Works straight from `file://` in Chrome, Firefox and Safari. GitHub Pages serves
+the same files from the `main` branch.
 
 ## Project layout
 ```

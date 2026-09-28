@@ -8,9 +8,11 @@ A zero-dependency, no-build browser app that reimplements *Puck's Seamlessifier 
 rip a flat texture out of a photo shot at an angle (perspective correction), make textures
 seamless/tileable, and pack them into an atlas. See `README.md` for the user-facing feature list.
 
+**Live site:** https://habib256.github.io/seamlessifier/ (GitHub Pages, `main` branch)
+
 ## Commands
 
-- **Run the app:** `open index.html` — there is no build step or dev server; it runs straight from `file://`.
+- **Run the app:** `open index.html` — there is no build step or dev server; it runs straight from `file://`. Same files are served at https://habib256.github.io/seamlessifier/.
 - **Run tests:** `node test/test.js` — headless tests of the core math (exit code 0/1, prints `N passed, M failed`).
 - **Syntax-check:** `node --check js/*.js`
 
